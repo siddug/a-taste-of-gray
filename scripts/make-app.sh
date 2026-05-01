@@ -7,19 +7,23 @@ SCRATCH_DIR="${ROOT_DIR}/.build-release"
 DIST_DIR="${ROOT_DIR}/dist"
 APP_DIR="${DIST_DIR}/EInkToggle.app"
 EXECUTABLE_PATH="${SCRATCH_DIR}/release/EInkToggle"
-HELPER_PATH="${SCRATCH_DIR}/release/EInkToggleHelper"
 TMP_ROOT="${TMPDIR:-/tmp}"
+ICONSET_DIR="${TMP_ROOT}/einktoggle.iconset"
+ICON_PATH="${APP_DIR}/Contents/Resources/AppIcon.icns"
 
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-${TMP_ROOT}/einktoggle-clang-cache}"
 export SWIFTPM_CUSTOM_CACHE_DIR="${SWIFTPM_CUSTOM_CACHE_DIR:-${TMP_ROOT}/einktoggle-swiftpm-cache}"
 
 swift build -c release --product EInkToggle --scratch-path "${SCRATCH_DIR}"
-swift build -c release --product EInkToggleHelper --scratch-path "${SCRATCH_DIR}"
 
-mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources" "${APP_DIR}/Contents/Helpers"
+mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
 cp "${EXECUTABLE_PATH}" "${APP_DIR}/Contents/MacOS/EInkToggle"
-cp "${HELPER_PATH}" "${APP_DIR}/Contents/Helpers/EInkToggleHelper"
+
+rm -rf "${ICONSET_DIR}"
+swift "${ROOT_DIR}/scripts/generate-icon.swift" "${ICONSET_DIR}"
+iconutil -c icns "${ICONSET_DIR}" -o "${ICON_PATH}"
+rm -rf "${ICONSET_DIR}"
 
 cat > "${APP_DIR}/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -36,6 +40,8 @@ cat > "${APP_DIR}/Contents/Info.plist" <<'EOF'
     <string>6.0</string>
     <key>CFBundleName</key>
     <string>EInkToggle</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

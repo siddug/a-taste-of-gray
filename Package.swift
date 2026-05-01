@@ -11,17 +11,10 @@ let package = Package(
             name: "EInkToggle",
             targets: ["EInkToggle"]
         ),
-        .executable(
-            name: "EInkToggleHelper",
-            targets: ["EInkToggleHelper"]
-        ),
     ],
     targets: [
         .executableTarget(
             name: "EInkToggle"
-        ),
-        .executableTarget(
-            name: "EInkToggleHelper"
         ),
     ]
 )

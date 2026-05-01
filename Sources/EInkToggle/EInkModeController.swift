@@ -108,6 +108,8 @@ private struct SystemSettingsAutomation {
     private let colorFilterTypeKey = "__Color__-MADisplayFilterType"
 
     func setEnabled(_ enabled: Bool) throws {
+        let settingsWasRunning = NSRunningApplication.runningApplications(withBundleIdentifier: settingsBundleID).isEmpty == false
+
         guard ensureAccessibilityTrust() else {
             throw NSError(
                 domain: "EInkToggle",
@@ -145,6 +147,11 @@ private struct SystemSettingsAutomation {
         try setSwitch(afterAnyOf: ["Increase contrast"], to: false, in: window)
         try setSwitch(afterAnyOf: ["Differentiate without colour", "Differentiate without color"], to: false, in: window)
         try setSwitch(afterAnyOf: ["Colour filters", "Color Filters", "Color filters"], to: enabled, in: window)
+
+        if settingsWasRunning == false {
+            Thread.sleep(forTimeInterval: 0.3)
+            _ = app.terminate()
+        }
     }
 
     private func ensureAccessibilityTrust() -> Bool {
