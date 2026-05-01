@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct EInkToggleApp: App {
+struct ATasteOfGrayApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var controller = EInkModeController()
 

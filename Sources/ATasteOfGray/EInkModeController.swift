@@ -153,7 +153,7 @@ final class EInkModeController: ObservableObject {
         let alert = NSAlert()
         alert.icon = AppIconProvider.appIconImage
         alert.messageText = "Accessibility permission is needed"
-        alert.informativeText = "Grey controls the real Color Filters switch in System Settings, so macOS requires Accessibility access. After you continue, macOS will show its own permission prompt."
+        alert.informativeText = "A taste of Gray controls the real Color Filters switch in System Settings, so macOS requires Accessibility access. After you continue, macOS will show its own permission prompt."
         alert.addButton(withTitle: "Continue")
         alert.addButton(withTitle: "Cancel")
         return alert.runModal() == .alertFirstButtonReturn
@@ -167,7 +167,7 @@ final class EInkModeController: ObservableObject {
         UserDefaults.standard.set(true, forKey: "hasShownLaunchAtLoginApprovalAlert")
         presentAlert(
             title: "Finish enabling launch at login",
-            message: "Approve Grey in System Settings > General > Login Items to finish turning this on."
+            message: "Approve A taste of Gray in System Settings > General > Login Items to finish turning this on."
         )
     }
 
@@ -203,10 +203,10 @@ private struct SystemSettingsAutomation {
 
         guard Self.hasAccessibilityTrust else {
             throw NSError(
-                domain: "EInkToggle",
+                domain: "ATasteOfGray",
                 code: 1,
                 userInfo: [
-                    NSLocalizedDescriptionKey: "Grant Accessibility access to EInkToggle, then try again."
+                    NSLocalizedDescriptionKey: "Grant Accessibility access to A taste of Gray, then try again."
                 ]
             )
         }
@@ -219,7 +219,7 @@ private struct SystemSettingsAutomation {
         Thread.sleep(forTimeInterval: 1.2)
 
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: settingsBundleID).first else {
-            throw NSError(domain: "EInkToggle", code: 2, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 2, userInfo: [
                 NSLocalizedDescriptionKey: "Could not open System Settings."
             ])
         }
@@ -229,7 +229,7 @@ private struct SystemSettingsAutomation {
 
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         guard let window = firstWindow(of: axApp) else {
-            throw NSError(domain: "EInkToggle", code: 3, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 3, userInfo: [
                 NSLocalizedDescriptionKey: "Could not access the Display settings window."
             ])
         }
@@ -255,7 +255,7 @@ private struct SystemSettingsAutomation {
     private func setSwitch(afterAnyOf labels: [String], to enabled: Bool, in root: AXUIElement) throws {
         let normalizedLabels = Set(labels.map(normalize))
         guard let checkbox = checkbox(afterAnyMatching: normalizedLabels, in: root) else {
-            throw NSError(domain: "EInkToggle", code: 4, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 4, userInfo: [
                 NSLocalizedDescriptionKey: "Could not find \(labels[0]) in System Settings."
             ])
         }
@@ -266,7 +266,7 @@ private struct SystemSettingsAutomation {
         if current != desired {
             let result = AXUIElementPerformAction(checkbox, kAXPressAction as CFString)
             guard result == .success else {
-                throw NSError(domain: "EInkToggle", code: Int(result.rawValue), userInfo: [
+                throw NSError(domain: "ATasteOfGray", code: Int(result.rawValue), userInfo: [
                     NSLocalizedDescriptionKey: "Could not change \(labels[0])."
                 ])
             }
@@ -371,7 +371,7 @@ private enum NightShiftBridge {
 
         guard let setActiveImplementation = class_getMethodImplementation(type(of: blueLightClient), setActiveSelector),
               let setEnabledImplementation = class_getMethodImplementation(type(of: blueLightClient), setEnabledSelector) else {
-            throw NSError(domain: "EInkToggle", code: 20, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 20, userInfo: [
                 NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this macOS version."
             ])
         }
@@ -380,13 +380,13 @@ private enum NightShiftBridge {
         let setNightShift = unsafeBitCast(setEnabledImplementation, to: BoolFunc.self)
 
         guard setActive(blueLightClient, setActiveSelector, true) else {
-            throw NSError(domain: "EInkToggle", code: 21, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 21, userInfo: [
                 NSLocalizedDescriptionKey: "Could not activate the Night Shift client."
             ])
         }
 
         guard setNightShift(blueLightClient, setEnabledSelector, enabled) else {
-            throw NSError(domain: "EInkToggle", code: 22, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 22, userInfo: [
                 NSLocalizedDescriptionKey: "Could not change Night Shift."
             ])
         }
@@ -395,13 +395,13 @@ private enum NightShiftBridge {
     private static func makeBlueLightClient() throws -> AnyObject {
         guard dlopen(displayControlsPath, RTLD_NOW) != nil else {
             let message = dlerror().map { String(cString: $0) } ?? "Could not load DisplayControls."
-            throw NSError(domain: "EInkToggle", code: 23, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 23, userInfo: [
                 NSLocalizedDescriptionKey: message
             ])
         }
 
         guard let cbClientClass: AnyClass = NSClassFromString("CBClient") else {
-            throw NSError(domain: "EInkToggle", code: 24, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 24, userInfo: [
                 NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this Mac."
             ])
         }
@@ -413,7 +413,7 @@ private enum NightShiftBridge {
         guard let allocImplementation = class_getMethodImplementation(object_getClass(cbClientClass), allocSelector),
               let initImplementation = class_getMethodImplementation(cbClientClass, initSelector),
               let blueLightImplementation = class_getMethodImplementation(cbClientClass, blueLightSelector) else {
-            throw NSError(domain: "EInkToggle", code: 25, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 25, userInfo: [
                 NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this macOS version."
             ])
         }
@@ -426,7 +426,7 @@ private enum NightShiftBridge {
 
         guard let client = initialize(allocatedClient, initSelector),
               let clientBlueLight = blueLightClient(client, blueLightSelector) else {
-            throw NSError(domain: "EInkToggle", code: 26, userInfo: [
+            throw NSError(domain: "ATasteOfGray", code: 26, userInfo: [
                 NSLocalizedDescriptionKey: "Could not create the Night Shift client."
             ])
         }

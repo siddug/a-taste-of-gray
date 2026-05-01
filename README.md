@@ -1,8 +1,8 @@
-# EInkToggle
+# A taste of Gray
 
-`EInkToggle` is a lightweight macOS menu bar app for making a screen feel a little more e-ink friendly.
+`A taste of Gray` is a lightweight macOS menu bar app for making a screen feel a little more e-ink friendly.
 
-The Swift package and executable are named `EInkToggle`. The packaged app shows up in macOS as `A taste of Gray`.
+The Swift package and executable are named `ATasteOfGray`. The user-facing app name in macOS is `A taste of Gray`.
 
 ## What it does
 
@@ -27,7 +27,7 @@ Night Shift is handled through a small Objective-C runtime bridge into macOS dis
 ## Run locally
 
 ```bash
-swift run EInkToggle
+swift run ATasteOfGray
 ```
 
 The first time you try to toggle grayscale, macOS will ask for Accessibility access. Grant it, then retry from the menu bar app.
@@ -60,8 +60,8 @@ Open [Package.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Package.swi
 
 ## Project layout
 
-- [Sources/EInkToggle/EInkToggleApp.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/EInkToggle/EInkToggleApp.swift): app entry point and menu bar setup
-- [Sources/EInkToggle/MenuBarContent.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/EInkToggle/MenuBarContent.swift): menu UI
-- [Sources/EInkToggle/EInkModeController.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/EInkToggle/EInkModeController.swift): grayscale, Night Shift, and launch-at-login control logic
+- [Sources/ATasteOfGray/ATasteOfGrayApp.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/ATasteOfGray/ATasteOfGrayApp.swift): app entry point and menu bar setup
+- [Sources/ATasteOfGray/MenuBarContent.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/ATasteOfGray/MenuBarContent.swift): menu UI
+- [Sources/ATasteOfGray/EInkModeController.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/ATasteOfGray/EInkModeController.swift): grayscale, Night Shift, and launch-at-login control logic
 - [scripts/make-app.sh](/Users/siddharta.gunti/Documents/code/mayabazar/scripts/make-app.sh): release app bundle builder
 - [scripts/generate-icon.swift](/Users/siddharta.gunti/Documents/code/mayabazar/scripts/generate-icon.swift): app icon generator

@@ -2,19 +2,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "EInkToggle",
+    name: "ATasteOfGray",
     platforms: [
         .macOS(.v13),
     ],
     products: [
         .executable(
-            name: "EInkToggle",
-            targets: ["EInkToggle"]
+            name: "ATasteOfGray",
+            targets: ["ATasteOfGray"]
         ),
     ],
     targets: [
         .executableTarget(
-            name: "EInkToggle"
+            name: "ATasteOfGray"
         ),
     ]
 )

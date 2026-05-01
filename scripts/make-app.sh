@@ -6,20 +6,20 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SCRATCH_DIR="${ROOT_DIR}/.build-release"
 DIST_DIR="${ROOT_DIR}/dist"
 APP_DIR="${DIST_DIR}/A taste of Gray.app"
-EXECUTABLE_PATH="${SCRATCH_DIR}/release/EInkToggle"
+EXECUTABLE_PATH="${SCRATCH_DIR}/release/ATasteOfGray"
 TMP_ROOT="${TMPDIR:-/tmp}"
-ICONSET_DIR="${TMP_ROOT}/einktoggle.iconset"
+ICONSET_DIR="${TMP_ROOT}/atasteofgray.iconset"
 ICON_PATH="${APP_DIR}/Contents/Resources/AppIcon.icns"
 
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-${TMP_ROOT}/einktoggle-clang-cache}"
-export SWIFTPM_CUSTOM_CACHE_DIR="${SWIFTPM_CUSTOM_CACHE_DIR:-${TMP_ROOT}/einktoggle-swiftpm-cache}"
+export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-${TMP_ROOT}/atasteofgray-clang-cache}"
+export SWIFTPM_CUSTOM_CACHE_DIR="${SWIFTPM_CUSTOM_CACHE_DIR:-${TMP_ROOT}/atasteofgray-swiftpm-cache}"
 
-swift build -c release --product EInkToggle --scratch-path "${SCRATCH_DIR}"
+swift build -c release --product ATasteOfGray --scratch-path "${SCRATCH_DIR}"
 
 rm -rf "${APP_DIR}"
 mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
-cp "${EXECUTABLE_PATH}" "${APP_DIR}/Contents/MacOS/EInkToggle"
+cp "${EXECUTABLE_PATH}" "${APP_DIR}/Contents/MacOS/ATasteOfGray"
 
 rm -rf "${ICONSET_DIR}"
 swift "${ROOT_DIR}/scripts/generate-icon.swift" "${ICONSET_DIR}"
@@ -34,9 +34,9 @@ cat > "${APP_DIR}/Contents/Info.plist" <<'EOF'
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>EInkToggle</string>
+    <string>ATasteOfGray</string>
     <key>CFBundleIdentifier</key>
-    <string>com.mayabazar.einktoggle</string>
+    <string>com.mayabazar.atasteofgray</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleDisplayName</key>
