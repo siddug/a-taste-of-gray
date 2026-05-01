@@ -7,9 +7,9 @@ struct EInkToggleApp: App {
     @StateObject private var controller = EInkModeController()
 
     var body: some Scene {
-        MenuBarExtra("E-Ink Toggle", systemImage: controller.isEnabled ? "circle.lefthalf.filled" : "circle") {
+        MenuBarExtra("A taste of Gray", systemImage: controller.isEnabled ? "circle.lefthalf.filled" : "circle") {
             MenuBarContent(controller: controller)
-                .frame(width: 320)
+                .frame(width: 240)
                 .onAppear {
                     controller.refresh()
                 }
@@ -43,8 +43,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let alert = NSAlert()
         alert.icon = AppIconProvider.appIconImage
-        alert.messageText = "EInkToggle lives in your menu bar"
-        alert.informativeText = "Look for the half-filled circle near the clock. That menu is where you turn grayscale on or off."
+        alert.messageText = "A taste of Gray lives in your menu bar"
+        alert.informativeText = "Look for the circle icon near the clock. It appears empty when grayscale is off and half-filled when grayscale is on. Click it to control grayscale and Night Shift."
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }

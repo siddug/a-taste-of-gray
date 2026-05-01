@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SCRATCH_DIR="${ROOT_DIR}/.build-release"
 DIST_DIR="${ROOT_DIR}/dist"
-APP_DIR="${DIST_DIR}/EInkToggle.app"
+APP_DIR="${DIST_DIR}/A taste of Gray.app"
 EXECUTABLE_PATH="${SCRATCH_DIR}/release/EInkToggle"
 TMP_ROOT="${TMPDIR:-/tmp}"
 ICONSET_DIR="${TMP_ROOT}/einktoggle.iconset"
@@ -17,6 +17,7 @@ export SWIFTPM_CUSTOM_CACHE_DIR="${SWIFTPM_CUSTOM_CACHE_DIR:-${TMP_ROOT}/einktog
 
 swift build -c release --product EInkToggle --scratch-path "${SCRATCH_DIR}"
 
+rm -rf "${APP_DIR}"
 mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
 cp "${EXECUTABLE_PATH}" "${APP_DIR}/Contents/MacOS/EInkToggle"
 
@@ -38,9 +39,13 @@ cat > "${APP_DIR}/Contents/Info.plist" <<'EOF'
     <string>com.mayabazar.einktoggle</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
+    <key>CFBundleDisplayName</key>
+    <string>A taste of Gray</string>
     <key>CFBundleName</key>
-    <string>EInkToggle</string>
+    <string>A taste of Gray</string>
     <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
     <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
@@ -58,4 +63,5 @@ cat > "${APP_DIR}/Contents/Info.plist" <<'EOF'
 </plist>
 EOF
 
+touch "${APP_DIR}"
 printf 'Created %s\n' "${APP_DIR}"

@@ -5,56 +5,33 @@ struct MenuBarContent: View {
     @ObservedObject var controller: EInkModeController
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("E-Ink Mode")
-                .font(.headline)
-
-            Toggle(
-                "Enable e-ink mode",
+        VStack(alignment: .leading, spacing: 12) {
+            toggleRow(
+                "Grayscale",
                 isOn: Binding(
                     get: { controller.isEnabled },
                     set: { controller.setEnabled($0) }
-                )
+                ),
+                disabled: controller.isApplying
             )
-            .toggleStyle(.switch)
-            .disabled(controller.isApplying)
 
-            Text(controller.statusMessage)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            toggleRow(
+                "Night Shift",
+                isOn: Binding(
+                    get: { controller.isNightShiftEnabled },
+                    set: { controller.setNightShiftEnabled($0) }
+                ),
+                disabled: controller.isNightShiftApplying
+            )
 
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("This toggle manages:")
-                    .font(.subheadline.weight(.semibold))
-
-                ForEach(controller.managedSettings, id: \.key) { setting in
-                    Label(setting.displayName, systemImage: "checkmark.circle")
-                        .font(.caption)
-                }
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Manual follow-up")
-                    .font(.subheadline.weight(.semibold))
-
-                Text("This app now only toggles grayscale. Night Shift, True Tone, and brightness still need to be adjusted in macOS Display settings.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Button("Open Accessibility Display") {
-                    controller.open(.accessibilityDisplay)
-                }
-
-                Button("Open Display Settings") {
-                    controller.open(.display)
-                }
-            }
+            toggleRow(
+                "Launch at login",
+                isOn: Binding(
+                    get: { controller.launchAtLoginEnabled },
+                    set: { controller.setLaunchAtLogin($0) }
+                ),
+                disabled: controller.isUpdatingLaunchAtLogin
+            )
 
             Divider()
 
@@ -72,5 +49,19 @@ struct MenuBarContent: View {
             }
         }
         .padding(16)
+    }
+
+    @ViewBuilder
+    private func toggleRow(_ title: String, isOn: Binding<Bool>, disabled: Bool) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .disabled(disabled)
+        }
     }
 }

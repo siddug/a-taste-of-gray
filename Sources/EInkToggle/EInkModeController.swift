@@ -1,91 +1,143 @@
 import AppKit
 import ApplicationServices
-import Combine
+import Darwin
 import Foundation
+import ObjectiveC.runtime
+import ServiceManagement
 
 @MainActor
 final class EInkModeController: ObservableObject {
-    struct ManagedSetting {
-        let suiteName: String
-        let key: String
-        let displayName: String
-    }
-
-    enum SettingsDestination {
-        case accessibilityDisplay
-        case display
-
-        var url: URL? {
-            switch self {
-            case .accessibilityDisplay:
-                return URL(string: "x-apple.systempreferences:com.apple.preference.universalaccess?Seeing_Display")
-            case .display:
-                return URL(string: "x-apple.systempreferences:com.apple.preference.displays")
-            }
-        }
-    }
-
     @Published private(set) var isEnabled = false
     @Published private(set) var isApplying = false
-    @Published private(set) var statusMessage = "Turn on e-ink mode to enable the core accessibility settings."
 
-    let managedSettings: [ManagedSetting] = [
-        ManagedSetting(
-            suiteName: "com.apple.mediaaccessibility",
-            key: "__Color__-MADisplayFilterCategoryEnabled",
-            displayName: "Color Filters (Grayscale)"
-        ),
-    ]
+    @Published private(set) var isNightShiftEnabled = false
+    @Published private(set) var isNightShiftApplying = false
+
+    @Published private(set) var launchAtLoginEnabled = false
+    @Published private(set) var isUpdatingLaunchAtLogin = false
+
+    private let colorFilterSuiteName = "com.apple.mediaaccessibility"
+    private let colorFilterEnabledKey = "__Color__-MADisplayFilterCategoryEnabled"
+    private let lastKnownNightShiftKey = "lastKnownNightShiftEnabled"
 
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
         isApplying = true
-        statusMessage = enabled ? "Applying e-ink mode..." : "Turning e-ink mode off..."
 
         Task { @MainActor in
             defer {
                 isApplying = false
-                refresh()
+                refreshEInkState()
             }
 
             do {
-                try SystemSettingsAutomation().setEnabled(enabled)
-                statusMessage = enabled
-                    ? "Grayscale is on. Use Display settings for Night Shift, True Tone, and brightness."
-                    : "Grayscale is off."
+                if SystemSettingsAutomation.hasAccessibilityTrust == false {
+                    let shouldPrompt = presentAccessibilityExplainer()
+                    guard shouldPrompt else {
+                        isEnabled = false
+                        return
+                    }
+
+                    SystemSettingsAutomation.requestAccessibilityTrustPrompt()
+                    isEnabled = false
+                    return
+                }
+
+                try SystemSettingsAutomation().setGrayscaleEnabled(enabled)
             } catch {
-                statusMessage = "Toggle failed: \(error.localizedDescription)"
+                presentAlert(
+                    title: "Couldn't change grayscale",
+                    message: error.localizedDescription
+                )
+            }
+        }
+    }
+
+    func setNightShiftEnabled(_ enabled: Bool) {
+        isNightShiftEnabled = enabled
+        isNightShiftApplying = true
+
+        Task { @MainActor in
+            defer {
+                isNightShiftApplying = false
+                refreshNightShiftState()
+            }
+
+            do {
+                try NightShiftBridge.setEnabled(enabled)
+                UserDefaults.standard.set(enabled, forKey: lastKnownNightShiftKey)
+            } catch {
+                presentAlert(
+                    title: "Couldn't change Night Shift",
+                    message: error.localizedDescription
+                )
+            }
+        }
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        isUpdatingLaunchAtLogin = true
+
+        Task { @MainActor in
+            defer {
+                isUpdatingLaunchAtLogin = false
+                refreshLaunchAtLoginState()
+            }
+
+            do {
+                if enabled {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                    UserDefaults.standard.removeObject(forKey: "hasShownLaunchAtLoginApprovalAlert")
+                }
+            } catch {
+                presentAlert(
+                    title: "Couldn't change launch at login",
+                    message: error.localizedDescription
+                )
             }
         }
     }
 
     func refresh() {
-        let values = [
-            currentColorFilterEnabled(),
-        ]
+        refreshEInkState()
+        refreshNightShiftState()
+        refreshLaunchAtLoginState()
+    }
 
-        if values.allSatisfy({ $0 }) {
+    private func refreshEInkState() {
+        if currentColorFilterEnabled() {
             isEnabled = true
-            statusMessage = "Grayscale is on. Use Display settings for Night Shift, True Tone, and brightness."
-        } else if values.contains(true) {
-            isEnabled = false
-            statusMessage = "Grayscale looks partially on. Toggling will normalize it."
         } else {
             isEnabled = false
-            statusMessage = "Turn on grayscale mode."
         }
     }
 
-    func open(_ destination: SettingsDestination) {
-        if let url = destination.url {
-            NSWorkspace.shared.open(url)
+    private func refreshNightShiftState() {
+        if let storedValue = UserDefaults.standard.object(forKey: lastKnownNightShiftKey) as? Bool {
+            isNightShiftEnabled = storedValue
+        } else {
+            isNightShiftEnabled = false
         }
     }
 
-    private func currentValue(for setting: ManagedSetting) -> Bool {
+    private func refreshLaunchAtLoginState() {
+        switch SMAppService.mainApp.status {
+        case .enabled:
+            launchAtLoginEnabled = true
+        case .requiresApproval:
+            launchAtLoginEnabled = true
+            presentLaunchAtLoginApprovalAlert()
+        default:
+            launchAtLoginEnabled = false
+        }
+    }
+
+    private func currentColorFilterEnabled() -> Bool {
         if let value = CFPreferencesCopyValue(
-            setting.key as CFString,
-            setting.suiteName as CFString,
+            colorFilterEnabledKey as CFString,
+            colorFilterSuiteName as CFString,
             kCFPreferencesCurrentUser,
             kCFPreferencesAnyHost
         ) as? Bool {
@@ -95,10 +147,40 @@ final class EInkModeController: ObservableObject {
         return false
     }
 
-    private func currentColorFilterEnabled() -> Bool {
-        currentValue(for: managedSettings[0])
+    private func presentAccessibilityExplainer() -> Bool {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.icon = AppIconProvider.appIconImage
+        alert.messageText = "Accessibility permission is needed"
+        alert.informativeText = "Grey controls the real Color Filters switch in System Settings, so macOS requires Accessibility access. After you continue, macOS will show its own permission prompt."
+        alert.addButton(withTitle: "Continue")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
+    private func presentLaunchAtLoginApprovalAlert() {
+        guard UserDefaults.standard.bool(forKey: "hasShownLaunchAtLoginApprovalAlert") == false else {
+            return
+        }
+
+        UserDefaults.standard.set(true, forKey: "hasShownLaunchAtLoginApprovalAlert")
+        presentAlert(
+            title: "Finish enabling launch at login",
+            message: "Approve Grey in System Settings > General > Login Items to finish turning this on."
+        )
+    }
+
+    private func presentAlert(title: String, message: String) {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.icon = AppIconProvider.appIconImage
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
 }
 
 private struct SystemSettingsAutomation {
@@ -107,10 +189,19 @@ private struct SystemSettingsAutomation {
     private let colorFilterTypeSuite = "com.apple.mediaaccessibility"
     private let colorFilterTypeKey = "__Color__-MADisplayFilterType"
 
-    func setEnabled(_ enabled: Bool) throws {
+    static var hasAccessibilityTrust: Bool {
+        AXIsProcessTrusted()
+    }
+
+    static func requestAccessibilityTrustPrompt() {
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
+    }
+
+    func setGrayscaleEnabled(_ enabled: Bool) throws {
         let settingsWasRunning = NSRunningApplication.runningApplications(withBundleIdentifier: settingsBundleID).isEmpty == false
 
-        guard ensureAccessibilityTrust() else {
+        guard Self.hasAccessibilityTrust else {
             throw NSError(
                 domain: "EInkToggle",
                 code: 1,
@@ -143,7 +234,6 @@ private struct SystemSettingsAutomation {
             ])
         }
 
-        // Keep the effect intentionally lightweight: grayscale only.
         try setSwitch(afterAnyOf: ["Increase contrast"], to: false, in: window)
         try setSwitch(afterAnyOf: ["Differentiate without colour", "Differentiate without color"], to: false, in: window)
         try setSwitch(afterAnyOf: ["Colour filters", "Color Filters", "Color filters"], to: enabled, in: window)
@@ -152,15 +242,6 @@ private struct SystemSettingsAutomation {
             Thread.sleep(forTimeInterval: 0.3)
             _ = app.terminate()
         }
-    }
-
-    private func ensureAccessibilityTrust() -> Bool {
-        if AXIsProcessTrusted() {
-            return true
-        }
-
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        return AXIsProcessTrustedWithOptions(options)
     }
 
     private func firstWindow(of app: AXUIElement) -> AXUIElement? {
@@ -271,5 +352,85 @@ private struct SystemSettingsAutomation {
             kCFPreferencesCurrentUser,
             kCFPreferencesAnyHost
         )
+    }
+}
+
+private enum NightShiftBridge {
+    private static let displayControlsPath = "/System/Library/CoreServices/ControlCenter.app/Contents/PlugIns/DisplayControls.appex/Contents/MacOS/DisplayControls"
+
+    typealias AllocFunc = @convention(c) (AnyClass, Selector) -> AnyObject
+    typealias InitFunc = @convention(c) (AnyObject, Selector) -> AnyObject?
+    typealias ObjReturnFunc = @convention(c) (AnyObject, Selector) -> AnyObject?
+    typealias BoolFunc = @convention(c) (AnyObject, Selector, Bool) -> Bool
+
+    static func setEnabled(_ enabled: Bool) throws {
+        let blueLightClient = try makeBlueLightClient()
+
+        let setActiveSelector = sel_registerName("setActive:")
+        let setEnabledSelector = sel_registerName("setEnabled:")
+
+        guard let setActiveImplementation = class_getMethodImplementation(type(of: blueLightClient), setActiveSelector),
+              let setEnabledImplementation = class_getMethodImplementation(type(of: blueLightClient), setEnabledSelector) else {
+            throw NSError(domain: "EInkToggle", code: 20, userInfo: [
+                NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this macOS version."
+            ])
+        }
+
+        let setActive = unsafeBitCast(setActiveImplementation, to: BoolFunc.self)
+        let setNightShift = unsafeBitCast(setEnabledImplementation, to: BoolFunc.self)
+
+        guard setActive(blueLightClient, setActiveSelector, true) else {
+            throw NSError(domain: "EInkToggle", code: 21, userInfo: [
+                NSLocalizedDescriptionKey: "Could not activate the Night Shift client."
+            ])
+        }
+
+        guard setNightShift(blueLightClient, setEnabledSelector, enabled) else {
+            throw NSError(domain: "EInkToggle", code: 22, userInfo: [
+                NSLocalizedDescriptionKey: "Could not change Night Shift."
+            ])
+        }
+    }
+
+    private static func makeBlueLightClient() throws -> AnyObject {
+        guard dlopen(displayControlsPath, RTLD_NOW) != nil else {
+            let message = dlerror().map { String(cString: $0) } ?? "Could not load DisplayControls."
+            throw NSError(domain: "EInkToggle", code: 23, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ])
+        }
+
+        guard let cbClientClass: AnyClass = NSClassFromString("CBClient") else {
+            throw NSError(domain: "EInkToggle", code: 24, userInfo: [
+                NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this Mac."
+            ])
+        }
+
+        let allocSelector = sel_registerName("alloc")
+        let initSelector = sel_registerName("init")
+        let blueLightSelector = sel_registerName("blueLightClient")
+
+        guard let allocImplementation = class_getMethodImplementation(object_getClass(cbClientClass), allocSelector),
+              let initImplementation = class_getMethodImplementation(cbClientClass, initSelector),
+              let blueLightImplementation = class_getMethodImplementation(cbClientClass, blueLightSelector) else {
+            throw NSError(domain: "EInkToggle", code: 25, userInfo: [
+                NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this macOS version."
+            ])
+        }
+
+        let allocate = unsafeBitCast(allocImplementation, to: AllocFunc.self)
+        let initialize = unsafeBitCast(initImplementation, to: InitFunc.self)
+        let blueLightClient = unsafeBitCast(blueLightImplementation, to: ObjReturnFunc.self)
+
+        let allocatedClient = allocate(cbClientClass, allocSelector)
+
+        guard let client = initialize(allocatedClient, initSelector),
+              let clientBlueLight = blueLightClient(client, blueLightSelector) else {
+            throw NSError(domain: "EInkToggle", code: 26, userInfo: [
+                NSLocalizedDescriptionKey: "Could not create the Night Shift client."
+            ])
+        }
+
+        return clientBlueLight
     }
 }
