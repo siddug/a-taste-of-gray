@@ -1,35 +1,67 @@
 # EInkToggle
 
-A tiny macOS menu bar app inspired by Blake Watson's e-ink-mode recipe. It gives you one toggle for grayscale and quick links for the rest of the workflow.
+`EInkToggle` is a lightweight macOS menu bar app for making a screen feel a little more e-ink friendly.
 
-## What it toggles
+The Swift package and executable are named `EInkToggle`. The packaged app shows up in macOS as `A taste of Gray`.
 
-- Grayscale
+## What it does
 
-## What still needs a manual adjustment
+- Toggles the real **Color Filters > Grayscale** switch in System Settings
+- Toggles **Night Shift** from the menu bar
+- Lets you enable **Launch at login**
+- Lives as an **LSUIElement** menu bar app, so it runs without a Dock icon
 
-- Contrast
-- Differentiate without color
-- Night Shift
-- True Tone
-- Brightness
+This project is intentionally narrow. It focuses on the controls that can be switched reliably enough from a small utility instead of trying to own every display setting.
 
-The app now only flips the real Color Filters switch in System Settings and leaves the stronger contrast-related settings alone. The display-temperature and brightness controls do not have a stable public API, so the app opens the relevant System Settings pages instead of trying to fake those controls.
+## How it works
 
-## Run it
+Grayscale is changed by automating the Display section of macOS Accessibility settings. Because that touches real System Settings UI, the app needs Accessibility permission.
+
+Night Shift is handled through a small Objective-C runtime bridge into macOS display controls. That keeps the menu simple, but it also means the implementation depends on private system behavior and may be more fragile across macOS releases.
+
+## Requirements
+
+- macOS 13 or newer
+- Xcode 15+ or recent Command Line Tools with Swift support
+
+## Run locally
 
 ```bash
 swift run EInkToggle
 ```
 
-## Make an app bundle
+The first time you try to toggle grayscale, macOS will ask for Accessibility access. Grant it, then retry from the menu bar app.
+
+## Build an app bundle
 
 ```bash
 ./scripts/make-app.sh
 ```
 
-That produces `dist/EInkToggle.app`, which you can launch like a regular menu bar app.
+That script:
 
-## Open it in Xcode
+- builds a release binary
+- generates an `.icns` app icon
+- creates a standalone app bundle at `dist/A taste of Gray.app`
 
-Open `Package.swift` in Xcode. Xcode treats the package like a project, so you can run it as a normal macOS app from there.
+You can then launch the app bundle directly like a normal menu bar app.
+
+## Open in Xcode
+
+Open [Package.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Package.swift) in Xcode. Xcode treats the package like a project, so you can build and run it as a standard macOS app target.
+
+## Permissions and caveats
+
+- **Accessibility access is required** for the grayscale toggle because the app drives the real System Settings control.
+- **Launch at login may need a second approval step** in `System Settings > General > Login Items`.
+- **Night Shift state is not read back from the system.** The menu currently reflects the last value requested by the app, stored in `UserDefaults`.
+- **Night Shift support is more brittle than grayscale.** It depends on private macOS internals and could break on a future OS update.
+- **Other display tweaks remain manual.** Contrast, brightness, True Tone, and similar controls are not managed here.
+
+## Project layout
+
+- [Sources/EInkToggle/EInkToggleApp.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/EInkToggle/EInkToggleApp.swift): app entry point and menu bar setup
+- [Sources/EInkToggle/MenuBarContent.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/EInkToggle/MenuBarContent.swift): menu UI
+- [Sources/EInkToggle/EInkModeController.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/EInkToggle/EInkModeController.swift): grayscale, Night Shift, and launch-at-login control logic
+- [scripts/make-app.sh](/Users/siddharta.gunti/Documents/code/mayabazar/scripts/make-app.sh): release app bundle builder
+- [scripts/generate-icon.swift](/Users/siddharta.gunti/Documents/code/mayabazar/scripts/generate-icon.swift): app icon generator
