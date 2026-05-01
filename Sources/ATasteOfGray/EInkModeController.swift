@@ -356,63 +356,49 @@ private struct SystemSettingsAutomation {
 }
 
 private enum NightShiftBridge {
-    private static let displayControlsPath = "/System/Library/CoreServices/ControlCenter.app/Contents/PlugIns/DisplayControls.appex/Contents/MacOS/DisplayControls"
+    private static let candidateFrameworkPaths = [
+        "/System/Library/PrivateFrameworks/CoreBrightness.framework/CoreBrightness",
+        "/System/Library/PrivateFrameworks/CoreBrightness.framework/Versions/A/CoreBrightness",
+    ]
 
     typealias AllocFunc = @convention(c) (AnyClass, Selector) -> AnyObject
     typealias InitFunc = @convention(c) (AnyObject, Selector) -> AnyObject?
-    typealias ObjReturnFunc = @convention(c) (AnyObject, Selector) -> AnyObject?
     typealias BoolFunc = @convention(c) (AnyObject, Selector, Bool) -> Bool
 
     static func setEnabled(_ enabled: Bool) throws {
-        let blueLightClient = try makeBlueLightClient()
+        let client = try makeBlueLightClient()
 
-        let setActiveSelector = sel_registerName("setActive:")
         let setEnabledSelector = sel_registerName("setEnabled:")
 
-        guard let setActiveImplementation = class_getMethodImplementation(type(of: blueLightClient), setActiveSelector),
-              let setEnabledImplementation = class_getMethodImplementation(type(of: blueLightClient), setEnabledSelector) else {
+        guard let setEnabledImplementation = class_getMethodImplementation(type(of: client), setEnabledSelector) else {
             throw NSError(domain: "ATasteOfGray", code: 20, userInfo: [
                 NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this macOS version."
             ])
         }
 
-        let setActive = unsafeBitCast(setActiveImplementation, to: BoolFunc.self)
         let setNightShift = unsafeBitCast(setEnabledImplementation, to: BoolFunc.self)
 
-        guard setActive(blueLightClient, setActiveSelector, true) else {
-            throw NSError(domain: "ATasteOfGray", code: 21, userInfo: [
-                NSLocalizedDescriptionKey: "Could not activate the Night Shift client."
-            ])
-        }
-
-        guard setNightShift(blueLightClient, setEnabledSelector, enabled) else {
+        guard setNightShift(client, setEnabledSelector, enabled) else {
             throw NSError(domain: "ATasteOfGray", code: 22, userInfo: [
-                NSLocalizedDescriptionKey: "Could not change Night Shift."
+                NSLocalizedDescriptionKey: "Could not change Night Shift. Your Mac may not support Night Shift."
             ])
         }
     }
 
     private static func makeBlueLightClient() throws -> AnyObject {
-        guard dlopen(displayControlsPath, RTLD_NOW) != nil else {
-            let message = dlerror().map { String(cString: $0) } ?? "Could not load DisplayControls."
-            throw NSError(domain: "ATasteOfGray", code: 23, userInfo: [
-                NSLocalizedDescriptionKey: message
-            ])
-        }
+        try ensureCoreBrightnessLoaded()
 
-        guard let cbClientClass: AnyClass = NSClassFromString("CBClient") else {
+        guard let blueLightClass: AnyClass = NSClassFromString("CBBlueLightClient") else {
             throw NSError(domain: "ATasteOfGray", code: 24, userInfo: [
-                NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this Mac."
+                NSLocalizedDescriptionKey: "Night Shift is not available on this macOS version."
             ])
         }
 
         let allocSelector = sel_registerName("alloc")
         let initSelector = sel_registerName("init")
-        let blueLightSelector = sel_registerName("blueLightClient")
 
-        guard let allocImplementation = class_getMethodImplementation(object_getClass(cbClientClass), allocSelector),
-              let initImplementation = class_getMethodImplementation(cbClientClass, initSelector),
-              let blueLightImplementation = class_getMethodImplementation(cbClientClass, blueLightSelector) else {
+        guard let allocImplementation = class_getMethodImplementation(object_getClass(blueLightClass), allocSelector),
+              let initImplementation = class_getMethodImplementation(blueLightClass, initSelector) else {
             throw NSError(domain: "ATasteOfGray", code: 25, userInfo: [
                 NSLocalizedDescriptionKey: "Night Shift controls are unavailable on this macOS version."
             ])
@@ -420,17 +406,43 @@ private enum NightShiftBridge {
 
         let allocate = unsafeBitCast(allocImplementation, to: AllocFunc.self)
         let initialize = unsafeBitCast(initImplementation, to: InitFunc.self)
-        let blueLightClient = unsafeBitCast(blueLightImplementation, to: ObjReturnFunc.self)
 
-        let allocatedClient = allocate(cbClientClass, allocSelector)
-
-        guard let client = initialize(allocatedClient, initSelector),
-              let clientBlueLight = blueLightClient(client, blueLightSelector) else {
+        let allocated = allocate(blueLightClass, allocSelector)
+        guard let client = initialize(allocated, initSelector) else {
             throw NSError(domain: "ATasteOfGray", code: 26, userInfo: [
                 NSLocalizedDescriptionKey: "Could not create the Night Shift client."
             ])
         }
 
-        return clientBlueLight
+        return client
+    }
+
+    private static func ensureCoreBrightnessLoaded() throws {
+        if NSClassFromString("CBBlueLightClient") != nil {
+            return
+        }
+
+        var lastError: String?
+
+        for path in candidateFrameworkPaths {
+            if dlopen(path, RTLD_NOW) != nil {
+                if NSClassFromString("CBBlueLightClient") != nil {
+                    return
+                }
+            } else if let cString = dlerror() {
+                lastError = String(cString: cString)
+            }
+        }
+
+        let frameworkURL = URL(fileURLWithPath: "/System/Library/PrivateFrameworks/CoreBrightness.framework")
+        if let bundle = Bundle(url: frameworkURL), bundle.load() {
+            if NSClassFromString("CBBlueLightClient") != nil {
+                return
+            }
+        }
+
+        throw NSError(domain: "ATasteOfGray", code: 23, userInfo: [
+            NSLocalizedDescriptionKey: lastError ?? "Could not load Night Shift support on this macOS version."
+        ])
     }
 }
