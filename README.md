@@ -17,7 +17,7 @@ This project is intentionally narrow. It focuses on the controls that can be swi
 
 Grayscale is changed by automating the Display section of macOS Accessibility settings. Because that touches real System Settings UI, the app needs Accessibility permission.
 
-Night Shift is handled through a small Objective-C runtime bridge into macOS display controls. That keeps the menu simple, but it also means the implementation depends on private system behavior and may be more fragile across macOS releases.
+Night Shift is handled through a small Objective-C runtime bridge that loads `CoreBrightness.framework` and drives `CBBlueLightClient` directly. That class has backed Night Shift since macOS 10.12.4, so the path is reasonably stable, but it is still a private API and not officially supported by Apple.
 
 ## Requirements
 
@@ -48,7 +48,7 @@ You can then launch the app bundle directly like a normal menu bar app.
 
 ## Open in Xcode
 
-Open [Package.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Package.swift) in Xcode. Xcode treats the package like a project, so you can build and run it as a standard macOS app target.
+Open [Package.swift](Package.swift) in Xcode. Xcode treats the package like a project, so you can build and run it as a standard macOS app target.
 
 ## Permissions and caveats
 
@@ -60,8 +60,8 @@ Open [Package.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Package.swi
 
 ## Project layout
 
-- [Sources/ATasteOfGray/ATasteOfGrayApp.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/ATasteOfGray/ATasteOfGrayApp.swift): app entry point and menu bar setup
-- [Sources/ATasteOfGray/MenuBarContent.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/ATasteOfGray/MenuBarContent.swift): menu UI
-- [Sources/ATasteOfGray/EInkModeController.swift](/Users/siddharta.gunti/Documents/code/mayabazar/Sources/ATasteOfGray/EInkModeController.swift): grayscale, Night Shift, and launch-at-login control logic
-- [scripts/make-app.sh](/Users/siddharta.gunti/Documents/code/mayabazar/scripts/make-app.sh): release app bundle builder
-- [scripts/generate-icon.swift](/Users/siddharta.gunti/Documents/code/mayabazar/scripts/generate-icon.swift): app icon generator
+- [Sources/ATasteOfGray/ATasteOfGrayApp.swift](Sources/ATasteOfGray/ATasteOfGrayApp.swift): app entry point and menu bar setup
+- [Sources/ATasteOfGray/MenuBarContent.swift](Sources/ATasteOfGray/MenuBarContent.swift): menu UI
+- [Sources/ATasteOfGray/EInkModeController.swift](Sources/ATasteOfGray/EInkModeController.swift): grayscale, Night Shift, and launch-at-login control logic
+- [scripts/make-app.sh](scripts/make-app.sh): release app bundle builder
+- [scripts/generate-icon.swift](scripts/generate-icon.swift): app icon generator
