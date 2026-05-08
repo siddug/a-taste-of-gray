@@ -18,7 +18,6 @@ final class EInkModeController: ObservableObject {
 
     private let colorFilterSuiteName = "com.apple.mediaaccessibility"
     private let colorFilterEnabledKey = "__Color__-MADisplayFilterCategoryEnabled"
-    private let lastKnownNightShiftKey = "lastKnownNightShiftEnabled"
 
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
@@ -65,7 +64,6 @@ final class EInkModeController: ObservableObject {
 
             do {
                 try NightShiftBridge.setEnabled(enabled)
-                UserDefaults.standard.set(enabled, forKey: lastKnownNightShiftKey)
             } catch {
                 presentAlert(
                     title: "Couldn't change Night Shift",
@@ -115,10 +113,8 @@ final class EInkModeController: ObservableObject {
     }
 
     private func refreshNightShiftState() {
-        if let storedValue = UserDefaults.standard.object(forKey: lastKnownNightShiftKey) as? Bool {
-            isNightShiftEnabled = storedValue
-        } else {
-            isNightShiftEnabled = false
+        if let state = try? NightShiftBridge.currentState() {
+            isNightShiftEnabled = state.isActive
         }
     }
 
@@ -361,9 +357,38 @@ private enum NightShiftBridge {
         "/System/Library/PrivateFrameworks/CoreBrightness.framework/Versions/A/CoreBrightness",
     ]
 
+    struct State {
+        let isActive: Bool
+        let isEnabled: Bool
+        let isAvailable: Bool
+    }
+
+    private struct Time {
+        var hour: Int32 = 0
+        var minute: Int32 = 0
+    }
+
+    private struct Schedule {
+        var from = Time()
+        var to = Time()
+    }
+
+    // Mirrors CBBlueLightClient_StatusData_t so we can ask CoreBrightness for
+    // the current Night Shift status instead of relying on stale app state.
+    private struct Status {
+        var active = false
+        var enabled = false
+        var sunsetToSunrise = false
+        var mode: Int32 = 0
+        var schedule = Schedule()
+        var disableFlags: UInt64 = 0
+        var available = false
+    }
+
     typealias AllocFunc = @convention(c) (AnyClass, Selector) -> AnyObject
     typealias InitFunc = @convention(c) (AnyObject, Selector) -> AnyObject?
     typealias BoolFunc = @convention(c) (AnyObject, Selector, Bool) -> Bool
+    typealias GetStatusFunc = @convention(c) (AnyObject, Selector, UnsafeMutableRawPointer) -> Bool
 
     static func setEnabled(_ enabled: Bool) throws {
         let client = try makeBlueLightClient()
@@ -383,6 +408,36 @@ private enum NightShiftBridge {
                 NSLocalizedDescriptionKey: "Could not change Night Shift. Your Mac may not support Night Shift."
             ])
         }
+    }
+
+    static func currentState() throws -> State {
+        let client = try makeBlueLightClient()
+        let getStatusSelector = sel_registerName("getBlueLightStatus:")
+
+        guard let getStatusImplementation = class_getMethodImplementation(type(of: client), getStatusSelector) else {
+            throw NSError(domain: "ATasteOfGray", code: 21, userInfo: [
+                NSLocalizedDescriptionKey: "Night Shift status is unavailable on this macOS version."
+            ])
+        }
+
+        let getStatus = unsafeBitCast(getStatusImplementation, to: GetStatusFunc.self)
+        var status = Status()
+
+        let didReadStatus = withUnsafeMutablePointer(to: &status) { statusPointer in
+            getStatus(client, getStatusSelector, UnsafeMutableRawPointer(statusPointer))
+        }
+
+        guard didReadStatus else {
+            throw NSError(domain: "ATasteOfGray", code: 27, userInfo: [
+                NSLocalizedDescriptionKey: "Could not read the current Night Shift status."
+            ])
+        }
+
+        return State(
+            isActive: status.active,
+            isEnabled: status.enabled,
+            isAvailable: status.available
+        )
     }
 
     private static func makeBlueLightClient() throws -> AnyObject {

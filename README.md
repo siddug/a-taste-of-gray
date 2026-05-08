@@ -54,7 +54,7 @@ Open [Package.swift](Package.swift) in Xcode. Xcode treats the package like a pr
 
 - **Accessibility access is required** for the grayscale toggle because the app drives the real System Settings control.
 - **Launch at login may need a second approval step** in `System Settings > General > Login Items`.
-- **Night Shift state is not read back from the system.** The menu currently reflects the last value requested by the app, stored in `UserDefaults`.
+- **Night Shift state is read back from the system.** The menu reflects the current CoreBrightness status instead of a cached app-side value.
 - **Night Shift support is more brittle than grayscale.** It depends on private macOS internals and could break on a future OS update.
 - **Other display tweaks remain manual.** Contrast, brightness, True Tone, and similar controls are not managed here.
 
